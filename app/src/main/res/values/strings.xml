@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">FocusDelay</string>
+    <string name="accessibility_service_description">Monitors selected apps and shows a delay overlay before opening.</string>
+</resources>
