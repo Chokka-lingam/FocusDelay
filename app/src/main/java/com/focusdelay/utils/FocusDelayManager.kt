@@ -1,5 +1,6 @@
 package com.focusdelay.utils
 
 object FocusDelayManager {
-    var isIntentionalLaunch = false
+    // Stores the package name of the app we are about to launch intentionally.
+    var intentionallyLaunchedPackage: String? = null
 }

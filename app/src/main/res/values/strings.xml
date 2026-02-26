@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">FocusDelay</string>
     <string name="accessibility_service_description">Monitors selected apps and shows a delay overlay before opening.</string>
+    <string name="app_selection_title">Select apps to delay</string>
+    <string name="set_delay">Set Delay (default 5 seconds): %1$d s</string>
+    <string name="clear_saved_apps">Clear Saved Apps</string>
+    <string name="save_and_close">Save and Close</string>
 </resources>

@@ -27,23 +27,24 @@ class OverlayActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val prefs = PrefsManager(this)
         val packageName = intent.getStringExtra("package_name")
-        Log.d("OverlayActivity", "onCreate: package name: $packageName")
 
         setContent {
             var secondsLeft by remember { mutableIntStateOf(prefs.getDelaySeconds()) }
 
             LaunchedEffect(packageName) {
+                Log.d("FocusDelayDebug", "OverlayActivity: Starting countdown for $packageName")
                 while (secondsLeft > 0) {
                     delay(1000)
                     secondsLeft--
                 }
 
                 if (packageName != null) {
-                    Log.d("OverlayActivity", "Launching package: $packageName")
-                    FocusDelayManager.isIntentionalLaunch = true
+                    Log.d("FocusDelayDebug", "OverlayActivity: Countdown finished. Intentionally launching $packageName")
+                    // Set the package name to be ignored by the service
+                    FocusDelayManager.intentionallyLaunchedPackage = packageName
                     packageManager.getLaunchIntentForPackage(packageName)?.let { startActivity(it) }
                 } else {
-                    Log.d("OverlayActivity", "Package name is null, cannot launch app")
+                    Log.d("FocusDelayDebug", "OverlayActivity: Countdown finished but package name is null.")
                 }
                 finish()
             }

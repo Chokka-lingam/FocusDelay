@@ -2,7 +2,6 @@ package com.focusdelay.service
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
-import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.focusdelay.data.PrefsManager
@@ -12,11 +11,7 @@ import com.focusdelay.utils.FocusDelayManager
 class FocusAccessibilityService : AccessibilityService() {
 
     private lateinit var prefsManager: PrefsManager
-
-    companion object {
-        // Tracks the last app that was in the foreground
-        var lastForegroundApp: String? = null
-    }
+    private var lastForegroundPackage: String? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -25,42 +20,56 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // We are only interested in window state changes
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         val packageName = event.packageName?.toString() ?: return
-
         Log.d("FocusDelayDebug", "Got event for package: [$packageName]")
 
-        // If the foreground app hasn't changed, do nothing.
-        if (packageName == lastForegroundApp) {
-            Log.d("FocusDelayDebug", "Foreground app is unchanged. Ignoring.")
-            return
-        }
-        // Update the last foreground app
-        lastForegroundApp = packageName
-
-        // If our app intentionally launched this, ignore it to prevent a loop
-        if (FocusDelayManager.isIntentionalLaunch) {
-            FocusDelayManager.isIntentionalLaunch = false
-            Log.d("FocusDelayDebug", "Intentional launch detected. Ignoring.")
+        // Check 1: Was this the package we just intentionally launched from our overlay?
+        if (packageName == FocusDelayManager.intentionallyLaunchedPackage) {
+            FocusDelayManager.intentionallyLaunchedPackage = null // Consume the flag
+            lastForegroundPackage = packageName // This is now the foreground app
+            Log.d("FocusDelayDebug", "Intentional launch detected for [$packageName]. State updated.")
             return
         }
 
-        // Ignore events from our own app
+        // Check 2: Is this just an in-app navigation event within the same app?
+        if (packageName == lastForegroundPackage) {
+            Log.d("FocusDelayDebug", "Foreground package unchanged. Ignoring.")
+            return
+        }
+
+        Log.d("FocusDelayDebug", "Potential foreground package changed from [$lastForegroundPackage] to [$packageName]")
+
+        // Now, we decide if we need to ACT on this new state.
+
+        // Check 3: Is the new package a real, launchable app? Ignore transient system UI events.
+        val isLaunchable = packageManager.getLaunchIntentForPackage(packageName) != null
+        if (!isLaunchable && packageName != this.packageName) {
+            Log.d("FocusDelayDebug", "Ignoring non-launchable package: [$packageName]")
+            return
+        }
+
+        // Check 4: Is the new app our own?
         if (packageName == this.packageName) {
-            Log.d("FocusDelayDebug", "Event is from our own app. Ignoring.")
+            Log.d("FocusDelayDebug", "Event is for our own app. Ignoring.")
             return
         }
 
+        // If we reached here, it's a genuine switch to a different, launchable app.
+        // NOW it's safe to update our state.
+        lastForegroundPackage = packageName
+        Log.d("FocusDelayDebug", "Foreground package officially changed to [$packageName]")
+
+        // Check 5: Is the new app in the user's selected list?
         val selectedPackages = prefsManager.getSelectedPackages()
-        // If the app is not in our selected list, ignore it
         if (!selectedPackages.contains(packageName)) {
-            Log.d("FocusDelayDebug", "Package [$packageName] is not in the selected list. Ignoring.")
+            Log.d("FocusDelayDebug", "Package is not in the selected list. Ignoring.")
             return
         }
 
-        Log.d("FocusDelayDebug", "SUCCESS: New foreground app is a selected package. Launching overlay!")
+        // If all checks pass, it's a valid switch to a selected app. Trigger the delay.
+        Log.d("FocusDelayDebug", "SUCCESS: App switch detected. Launching overlay!")
         startActivity(
             Intent(this, OverlayActivity::class.java)
                 .putExtra("package_name", packageName)
