@@ -12,7 +12,11 @@ import com.focusdelay.utils.FocusDelayManager
 class FocusAccessibilityService : AccessibilityService() {
 
     private lateinit var prefsManager: PrefsManager
-    private var lastOverlayLaunchTime = 0L
+
+    companion object {
+        // Tracks the last app that was in the foreground
+        var lastForegroundApp: String? = null
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -27,6 +31,14 @@ class FocusAccessibilityService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
 
         Log.d("FocusDelayDebug", "Got event for package: [$packageName]")
+
+        // If the foreground app hasn't changed, do nothing.
+        if (packageName == lastForegroundApp) {
+            Log.d("FocusDelayDebug", "Foreground app is unchanged. Ignoring.")
+            return
+        }
+        // Update the last foreground app
+        lastForegroundApp = packageName
 
         // If our app intentionally launched this, ignore it to prevent a loop
         if (FocusDelayManager.isIntentionalLaunch) {
@@ -44,19 +56,11 @@ class FocusAccessibilityService : AccessibilityService() {
         val selectedPackages = prefsManager.getSelectedPackages()
         // If the app is not in our selected list, ignore it
         if (!selectedPackages.contains(packageName)) {
-            Log.d("FocusDelayDebug", "Package [$packageName] is not in the selected list [${selectedPackages.joinToString()}]. Ignoring.")
+            Log.d("FocusDelayDebug", "Package [$packageName] is not in the selected list. Ignoring.")
             return
         }
 
-        // To prevent spamming the overlay, enforce a cool-down period
-        val now = SystemClock.elapsedRealtime()
-        if (now - lastOverlayLaunchTime < 1500) {
-            Log.d("FocusDelayDebug", "Event is too soon after the last one. Ignoring.")
-            return
-        }
-        lastOverlayLaunchTime = now
-
-        Log.d("FocusDelayDebug", "SUCCESS: Event is for a selected package. Launching overlay!")
+        Log.d("FocusDelayDebug", "SUCCESS: New foreground app is a selected package. Launching overlay!")
         startActivity(
             Intent(this, OverlayActivity::class.java)
                 .putExtra("package_name", packageName)
