@@ -1,6 +1,7 @@
 package com.focusdelay.ui
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -18,20 +19,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.focusdelay.data.PrefsManager
+import com.focusdelay.utils.FocusDelayManager
 import kotlinx.coroutines.delay
 
 class OverlayActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = PrefsManager(this)
+        val packageName = intent.getStringExtra("package_name")
+        Log.d("OverlayActivity", "onCreate: package name: $packageName")
 
         setContent {
             var secondsLeft by remember { mutableIntStateOf(prefs.getDelaySeconds()) }
 
-            LaunchedEffect(Unit) {
+            LaunchedEffect(packageName) {
                 while (secondsLeft > 0) {
                     delay(1000)
                     secondsLeft--
+                }
+
+                if (packageName != null) {
+                    Log.d("OverlayActivity", "Launching package: $packageName")
+                    FocusDelayManager.isIntentionalLaunch = true
+                    packageManager.getLaunchIntentForPackage(packageName)?.let { startActivity(it) }
+                } else {
+                    Log.d("OverlayActivity", "Package name is null, cannot launch app")
                 }
                 finish()
             }

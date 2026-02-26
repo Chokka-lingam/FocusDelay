@@ -24,12 +24,29 @@ class AppSelectionViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun onTogglePackage(packageName: String) {
-        selectedPackages = selectedPackages.toMutableSet().apply {
-            if (contains(packageName)) remove(packageName) else add(packageName)
+        val newSelection = selectedPackages.toMutableSet()
+        if (newSelection.contains(packageName)) {
+            newSelection.remove(packageName)
+        } else {
+            newSelection.add(packageName)
         }
+        selectedPackages = newSelection
     }
 
     fun saveSelection() {
         prefsManager.setSelectedPackages(selectedPackages)
+    }
+
+    fun clearSelection() {
+        selectedPackages = emptySet()
+        prefsManager.setSelectedPackages(emptySet())
+    }
+
+    fun getDelaySeconds(): Int {
+        return prefsManager.getDelaySeconds()
+    }
+
+    fun setDelaySeconds(seconds: Int) {
+        prefsManager.setDelaySeconds(seconds)
     }
 }
